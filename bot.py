@@ -18,13 +18,30 @@ def randomName() :
 async def on_ready():
     print(f'Logged in as {bot.user}')
 
+def seperate_code_and_stdin(code):
+    """
+    format:
+    ```
+    code
+    ```
+    ```
+    stdin
+    ```
+    """
+
+    parts = code.split('```')
+    code = parts[1]
+    stdin = parts[3] if len(parts) > 3 else ''
+    return code, stdin.strip()
+
 @bot.command()
 async def python(ctx, *, code: str):
     # 創建一個子進程來執行代碼
-    code = code.replace('```', '')
+    code, stdin = seperate_code_and_stdin(code)
     try:
         result = subprocess.run(
-            ["python", "-c", code],
+            ["firejail","--quiet", "--private", "python3", "-c", code],
+            input=stdin,
             capture_output=True,
             text=True,
             timeout=10
@@ -39,7 +56,7 @@ async def python(ctx, *, code: str):
 
 @bot.command()
 async def cpp(ctx, *, code: str):
-    code = code.replace('```', '')
+    code, stdin = seperate_code_and_stdin(code)
     name = randomName()
     with open(f"cpp/{name}.cpp", "w") as f:
         f.write(code)
@@ -53,7 +70,8 @@ async def cpp(ctx, *, code: str):
         if result.returncode != 0:
             raise Exception(result.stderr)
         result = subprocess.run(
-            [f"./cpp/{name}"],
+            ["firejail", "--quiet", f"--private={os.getcwd()}", f"./cpp/{name}"],
+            input=stdin,
             capture_output=True,
             text=True,
             timeout=10
